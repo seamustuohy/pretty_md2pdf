@@ -1,1 +1,0 @@
-### Weak WiFi key (WPA)
