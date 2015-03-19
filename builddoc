@@ -1,0 +1,72 @@
+#!/bin/bash
+#----------------------------------------------------
+# name: builddoc
+# author: Seamus Tuohy
+# created: 02/18/2015
+# version: 0.0.1
+# description: A simple test script to automate building pdf's from markdown.
+#----------------------------------------------------
+
+#exit the script if any statement returns a non-true return value
+set -e
+set -x
+
+    while getopts "vhxt:d:i:f:" OPTION; do
+         case $OPTION in
+             v)
+                 readonly VERBOSE=1
+                 ;;
+             f)
+                 readonly DOC_FILENAME=$OPTARG
+                 ;;
+             d)
+                 readonly BUILD_DIRECTORY=$OPTARG
+                 ;;
+             t)
+                 readonly DOC_TITLE=$OPTARG
+                 ;;
+             h)
+                 usage
+                 exit 0
+                 ;;
+             x)
+                 readonly DEBUG='-x'
+                 set -x
+                 ;;
+             i)
+                 readonly INDEX_FILE=$OPTARG
+             ;;
+        esac
+    done
+
+
+
+
+# Command
+# builddoc --index [index.md] --title [title] --directory [final directory] --name [name]
+build() {
+    #Create the auditor guide
+    local DOC_MARKDOWN=markdown_test.md
+    local DOC_HTML=html_test.html
+    modules/markdown-pp/markdown-pp.py $INDEX_FILE `pwd`/$DOC_MARKDOWN
+	pandoc -s --variable=title:"$DOC_TITLE" \
+		--template=theme/html_report.template \
+		--to=html5 $BUILD_DIRECTORY/$DOC_MARKDOWN \
+		--output=$BUILD_DIRECTORY/$DOC_HTML
+	wkhtmltopdf --user-style-sheet theme/core.css \
+		--title "$DOC_TITLE" \
+		--disable-smart-shrinking  \
+		--load-error-handling skip \
+		--load-media-error-handling skip \
+		--footer-center "Page [page] of [toPage]" \
+		--outline \
+		--outline-depth 2 \
+		$BUILD_DIRECTORY/$DOC_HTML $BUILD_DIRECTORY/$DOC_FILENAME
+}
+
+
+
+main() {
+    build
+}
+main
