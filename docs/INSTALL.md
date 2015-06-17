@@ -4,7 +4,6 @@ Currently we have instructions for installing on the Ubuntu, Debian, and Kali-Li
 
 ### Installation Ubuntu
 
-
   * Install git
 
 ```
@@ -84,7 +83,7 @@ sudo apt-get install python-setuptools
 ### Installation Kali-Linux
 
   * *NOTE:** SAFETAG is currently incompatable with *metasploit* and its graphical user interface *armitage.* Installing SAFETAG requires that you remove these applications from Kali-Linux.
- 
+
   * Download SAFETAG
 
 ```

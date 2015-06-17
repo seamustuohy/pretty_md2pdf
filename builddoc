@@ -4,69 +4,141 @@
 # author: Seamus Tuohy
 # created: 02/18/2015
 # version: 0.0.1
-# description: A simple test script to automate building pdf's from markdown.
+# description: A simple script to automate building pdf's from markdown.
 #----------------------------------------------------
 
 #exit the script if any statement returns a non-true return value
 set -e
 set -x
 
-    while getopts "vhxt:d:i:f:" OPTION; do
-         case $OPTION in
-             v)
-                 readonly VERBOSE=1
-                 ;;
-             f)
-                 readonly DOC_FILENAME=$OPTARG
-                 ;;
-             d)
-                 readonly BUILD_DIRECTORY=$OPTARG
-                 ;;
-             t)
-                 readonly DOC_TITLE=$OPTARG
-                 ;;
-             h)
-                 usage
-                 exit 0
-                 ;;
-             x)
-                 readonly DEBUG='-x'
-                 set -x
-                 ;;
-             i)
-                 readonly INDEX_FILE=$OPTARG
-             ;;
-        esac
-    done
+
+readonly BUILD_DIRECTORY=$(mktemp -d)
+readonly PROG_DIR=$(readlink -m $(dirname $0))
+readonly RUN_DIR=$(pwd)
+
+readonly DOC_MARKDOWN=markdown_test.md
+readonly DOC_HTML=html_test.html
+
+while getopts "vhxs:t:T:d:i:o:" OPTION; do
+    case $OPTION in
+        o)
+            readonly DOC_FILENAME=$OPTARG
+            ;;
+        i)
+            readonly TARGET_DIR=$OPTARG
+            ;;
+        I)
+            indexfile="style.css"
+            ;;
+        h)
+            usage
+            exit 0
+            ;;
+        x)
+            readonly DEBUG='-x'
+            set -x
+            ;;
+        v)
+            readonly VERBOSE=1
+            ;;
+        s)
+            docstyle="$OPTARG"
+            ;;
+        t)
+            readonly THEME_DIR=$OPTARG
+            ;;
+        T)
+            doctheme="$OPTARG"
+            ;;
+    esac
+done
+
+
+if [[ $indexfile == "" ]]; then
+    indexfile="index.md"
+fi
+readonly INDEX_FILE="$indexfile"
+
+if [[ $docstyle == "" ]]; then
+    docstyle="style.css"
+fi
+readonly DOC_STYLE_SHEET="$docstyle"
+if [[ $doctheme == "" ]]; then
+    doctheme="theme.template"
+fi
+readonly DOC_THEME="$doctheme"
 
 
 
+usage() {
+    cat <<EOF
+Usage:
+    builddoc [-hxv] [-i <Input Directory>] [-t <Theme Directory>] [-o <Output Filename>]
 
-# Command
-# builddoc --index [index.md] --title [title] --directory [final directory] --name [name]
-build() {
-    #Create the auditor guide
-    local DOC_MARKDOWN=markdown_test.md
-    local DOC_HTML=html_test.html
-    modules/markdown-pp/markdown-pp.py $INDEX_FILE `pwd`/$DOC_MARKDOWN
-	pandoc -s --variable=title:"$DOC_TITLE" \
-		--template=theme/html_report.template \
-		--to=html5 $BUILD_DIRECTORY/$DOC_MARKDOWN \
-		--output=$BUILD_DIRECTORY/$DOC_HTML
-	wkhtmltopdf --user-style-sheet theme/core.css \
-		--title "$DOC_TITLE" \
-		--disable-smart-shrinking  \
-		--load-error-handling skip \
-		--load-media-error-handling skip \
-		--footer-center "Page [page] of [toPage]" \
-		--outline \
-		--outline-depth 2 \
-		$BUILD_DIRECTORY/$DOC_HTML $BUILD_DIRECTORY/$DOC_FILENAME
+Options:
+    i) The input directory containing an index file.
+    I) The index file name (REQUIRED if index is not named index.md)
+    o) The output file name.
+    t) The theme directory containing the theme file and style sheet and all resources they reference.
+    T) The theme file name (REQUIRED if theme not named theme.template)
+    s) The css style sheet file name (REQUIRED if style sheet not named style.css)
+    h) show this screen.
+    v) Turn on verbosity.
+    d) Turn on debugging.
+EOF
+
 }
 
+build() {
+    cd "$BUILD_DIRECTORY"
+    make_markdown
+    make_html
+    make_pdf
+}
 
+make_markdown() {
+    cd "$BUILD_DIRECTORY"/target
+    "$PROG_DIR"/modules/markdown-pp/markdown-pp.py "$BUILD_DIRECTORY"/target/"$INDEX_FILE" "$BUILD_DIRECTORY"/"$DOC_MARKDOWN"
+    cd "$BUILD_DIRECTORY"
+}
+
+make_html() {
+    pandoc -s --template="$BUILD_DIRECTORY"/theme/"$DOC_THEME" \
+           --to=html5 "$BUILD_DIRECTORY"/"$DOC_MARKDOWN" \
+           --output="$BUILD_DIRECTORY"/"$DOC_HTML"
+}
+
+make_pdf() {
+    wkhtmltopdf --user-style-sheet "$BUILD_DIRECTORY"/theme/"$DOC_STYLE_SHEET" \
+                --disable-smart-shrinking  \
+                --load-error-handling skip \
+                --load-media-error-handling skip \
+                --footer-center "Page [page] of [toPage]" \
+                --outline \
+                --outline-depth 3 \
+                "$BUILD_DIRECTORY"/"$DOC_HTML" "$RUN_DIR"/"$DOC_FILENAME"
+}
+
+copy_theme() {
+    cp -fr "$THEME_DIR" "$BUILD_DIRECTORY"/theme
+}
+
+copy_raw() {
+    cp -fr "$TARGET_DIR" "$BUILD_DIRECTORY"/target
+}
+
+clean() {
+    echo "Cleaning build directory."
+    rm -fr "$BUILD_DIRECTORY"
+    echo "Build directory cleaned."
+}
 
 main() {
+    copy_theme
+    copy_raw
     build
+    clean
 }
+
+
 main
